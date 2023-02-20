@@ -3,6 +3,8 @@ import { v1 } from 'uuid';
 import {AddTodolistActionType, RemoveTodolistActionType, setTodosAC, SetTodosACType} from './todolists-reducer';
 import {TaskPriorities, TaskStatuses, TaskType, todolistsAPI, UpdateTaskModelType} from '../api/todolists-api'
 import {Dispatch, GetState} from "./store";
+import {setAlert} from "./app-reducer";
+import axios from "axios";
 
 export type RemoveTaskActionType = {
     type: 'REMOVE-TASK',
@@ -158,18 +160,35 @@ export const setTasksTC = (todolistId: string)=>{
     }
 }
 
-export const deleteTaskTC = (todolistId: string, taskId: string) =>{
+export const deleteTaskTC = (todolistId: string, taskId: string, callSubscriber?:(disabled:boolean)=>void) =>{
     return (dispatch:Dispatch)=>{
+        callSubscriber?.(true)
         todolistsAPI.deleteTask(todolistId,taskId).then(resp=>{
             dispatch(removeTaskAC(todolistId,taskId))
+            callSubscriber?.(false)
         })
     }
 }
 
-export const createTaskTC = (todolistId: string, title: string)=>{
+export const createTaskTC = (todolistId: string, title: string,callSubscriber?:(disable:boolean)=>void)=>{
     return (dispatch:Dispatch)=>{
+        callSubscriber?.(true)
         todolistsAPI.createTask(todolistId,title).then(resp=>{
-            dispatch(addTaskAC(todolistId,resp.data.data.item))
+            if (resp.data.resultCode===0){
+                dispatch(addTaskAC(todolistId,resp.data.data.item))
+            } else {
+                dispatch(setAlert(resp.data.messages[0],"error"))
+            }
+        }).catch(err=>{
+            if (axios.isAxiosError(err)) {
+                dispatch(setAlert(err.message,'error'))
+                return err.message;
+            } else {
+                dispatch(setAlert('some error occurred','error'))
+                return 'An unexpected error occurred';
+            }
+        }).finally(()=>{
+            callSubscriber?.(false)
         })
     }
 }
@@ -199,7 +218,7 @@ export const setUpdatedTaskAC = (todolistId: string,task:TaskType)=>{
 //     }
 // }
 
-export const changeTasksStatusTC = (id: string, status: TaskStatuses, todolistId: string)=>{
+export const changeTasksStatusTC = (id: string, status: TaskStatuses, todolistId: string,callSubscriber?:(disabled:boolean)=>void)=>{
     return (dispatch:Dispatch,getState:GetState)=>{
         let model = getState().tasks[todolistId].find(el=>el.id === id)
         if (model){
@@ -211,14 +230,27 @@ export const changeTasksStatusTC = (id: string, status: TaskStatuses, todolistId
                 priority:model.priority,
                 startDate:model.startDate
             }
+            callSubscriber?.(true)
             todolistsAPI.updateTask(todolistId,id,updatedTaskInTypeForResponse).then(resp=>{
-                dispatch(setUpdatedTaskAC(todolistId,resp.data.data.item))
+                if (resp.data.resultCode===0){
+                    dispatch(setUpdatedTaskAC(todolistId,resp.data.data.item))
+                }
+            }).catch(err=>{
+                if (axios.isAxiosError(err)) {
+                    dispatch(setAlert(err.message,'error'))
+                    return err.message;
+                } else {
+                    dispatch(setAlert('some error occurred','error'))
+                    return 'An unexpected error occurred';
+                }
+            }).finally(()=>{
+                callSubscriber?.(false)
             })
         }
     }
 }
 
-export const changeTaskTitleTC = (id: string, newTitle: string, todolistId: string)=>{
+export const changeTaskTitleTC = (id: string, newTitle: string, todolistId: string,callSubscriber?:(disabled:boolean)=>void)=>{
     return (dispatch:Dispatch,getState:GetState)=>{
         let model = getState().tasks[todolistId].find(el=>el.id === id)
         if (model){
@@ -230,8 +262,23 @@ export const changeTaskTitleTC = (id: string, newTitle: string, todolistId: stri
                 priority:model.priority,
                 startDate:model.startDate
             }
+            callSubscriber?.(true)
             todolistsAPI.updateTask(todolistId,id,updatedTaskInTypeForResponse).then(resp=>{
-                dispatch(setUpdatedTaskAC(todolistId,resp.data.data.item))
+                if(resp.data.resultCode===0){
+                    dispatch(setUpdatedTaskAC(todolistId,resp.data.data.item))
+                } else {
+                    dispatch(setAlert(resp.data.messages[0],'error'))
+                }
+            }).catch(err=>{
+                if (axios.isAxiosError(err)) {
+                    dispatch(setAlert(err.message,'error'))
+                    return err.message;
+                } else {
+                    dispatch(setAlert('some error occurred','error'))
+                    return 'An unexpected error occurred';
+                }
+            }).finally(()=>{
+                callSubscriber?.(false)
             })
         }
     }

@@ -1,6 +1,8 @@
 import { v1 } from 'uuid';
 import {todolistsAPI, TodolistType} from '../api/todolists-api'
 import {Dispatch} from "./store";
+import {setAlert} from "./app-reducer";
+import axios from "axios";
 
 export type RemoveTodolistActionType = {
     type: 'REMOVE-TODOLIST',
@@ -103,26 +105,73 @@ export const setTodosTC = ()=>{
     }
 }
 
-export const deleteTodolistTC = (id: string)=>{
+export const deleteTodolistTC = (id: string,callSubscriber?:(disabled:boolean)=>void)=>{
     return (dispatch:Dispatch)=>{
+        callSubscriber?.(true)
         todolistsAPI.deleteTodolist(id).then(resp=>{
-            dispatch(removeTodolistAC(id))
+            if (resp.data.resultCode===0){
+                dispatch(removeTodolistAC(id))
+            }else {
+                dispatch(setAlert(resp.data.messages[0],'error'))
+            }
+        }).catch(err=>{
+            if (axios.isAxiosError(err)) {
+                dispatch(setAlert(err.message,'error'))
+                return err.message;
+            } else {
+                dispatch(setAlert('some error occurred','error'))
+                return 'An unexpected error occurred';
+            }
+        }).finally(()=>{
+            callSubscriber?.(false)
         })
     }
 }
 
-export const createTodolistTC = (title: string)=>{
+export const createTodolistTC = (title: string,callSubscriber?:(disable:boolean)=>void)=>{
     return (dispatch:Dispatch)=>{
+        callSubscriber?.(true)
         todolistsAPI.createTodolist(title).then(resp=>{
-            dispatch(addTodolistAC(resp.data.data.item))
+            if(resp.data.resultCode===0){
+                dispatch(addTodolistAC(resp.data.data.item))
+                dispatch(setAlert(`Todolist '${title}' was created`,'success'))
+            } else {
+                dispatch(setAlert(resp.data.messages[0],'error'))
+            }
+        }).catch(err=>{
+            if (axios.isAxiosError(err)) {
+                dispatch(setAlert(err.message,'error'))
+                return err.message;
+            } else {
+                dispatch(setAlert('some error occurred','error'))
+                return 'An unexpected error occurred';
+            }
+        }).finally(()=>{
+            callSubscriber?.(false)
         })
     }
 }
 
-export const updateTodolistTC = (id: string, title: string)=>{
+export const updateTodolistTC = (id: string, title: string,callSubscriber?:(disable:boolean)=>void)=>{
     return (dispatch:Dispatch)=>{
+        callSubscriber?.(true)
         todolistsAPI.updateTodolist(id,title).then(resp=>{
-            dispatch(changeTodolistTitleAC(id,title))
+            if (resp.data.resultCode === 0){
+                dispatch(changeTodolistTitleAC(id,title))
+                dispatch(setAlert(`Todolist "${title}" was updated`,'success'))
+            } else {
+                dispatch(setAlert(resp.data.messages[0],'error'))
+            }
+        }).catch(err=>{
+            if (axios.isAxiosError(err)) {
+                dispatch(setAlert(err.message,'error'))
+                return err.message;
+            } else {
+                dispatch(setAlert('some error occurred','error'))
+                return 'An unexpected error occurred';
+            }
+        }).finally(()=>{
+            callSubscriber?.(false)
         })
     }
 }
